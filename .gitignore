@@ -1,0 +1,24 @@
+# Local-only environment files (contain credentials — never commit)
+.env
+.env.local
+
+# Build artifacts
+bin/
+coverage.out
+
+# Runtime state
+osm-monitor-state.json
+*.state.json
+
+# Security audit results (local only)
+.audit/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# IDE / OS noise
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.swo
