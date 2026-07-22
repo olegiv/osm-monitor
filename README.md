@@ -1,5 +1,8 @@
 # osm-monitor
 
+[![CI](https://github.com/olegiv/osm-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/olegiv/osm-monitor/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+
 Console monitor for OpenStreetMap-based services with Webex alerts. Designed
 to run as a cron job on Linux and be developed on macOS.
 
@@ -253,6 +256,10 @@ Logs land in the journal; no flock needed (systemd serializes the unit).
 Small JSON document (written atomically, mode 600) recording per-service
 health, when the current status began, and the last check time. A missing or
 corrupt state file is treated as a first run — it can never stop monitoring.
+
+## License
+
+Licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE).
 
 ## Security notes
 
