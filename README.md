@@ -93,6 +93,7 @@ Precedence: **flags > environment > `--env-file` entries > defaults**.
 | `--user-agent` | `OSMMON_USER_AGENT` | `iru-osm-monitor/<version> (+contact)` |
 | `--verbose` | `OSMMON_VERBOSE` | off |
 | `--env-file` | — | load a shell-compatible `KEY=value` file |
+| `--heartbeat` | — | also post a heartbeat summary for this cycle |
 | `--dry-run` | — | no webhook POST, no state write |
 
 The OSM and Nominatim [usage policies](https://operations.osmfoundation.org/policies/api/)
@@ -120,6 +121,47 @@ Example messages:
 > - **Down since:** 2026-07-21 11:45:00 UTC — **outage duration: 20m0s**
 > - **Recovered:** 2026-07-21 12:05:00 UTC
 > - **Monitor:** monitor-host01
+
+## Heartbeat
+
+Because alerts fire only on transitions, a silently broken cron pipeline
+looks identical to "everything is up". A `--heartbeat` run performs the
+normal cycle (checks + transition alerts) and **additionally** posts an
+unconditional summary — proving cron, the checks, and the webhook are all
+alive end-to-end:
+
+> 💓 **HEARTBEAT — osm-monitor**
+> - **Services:** OSM API ✅ · Nominatim ✅ · OpenRouteService ✅
+> - **Checked:** 2026-07-27 07:55:03 UTC
+> - **Monitor:** monitor-host01 (osm-monitor v1.0.0)
+
+The heartbeat is scheduled **weekly: Monday 09:55 Geneva time**
+(`Europe/Zurich`). Two details make this exact:
+
+- `CRON_TZ=Europe/Zurich` pins the schedule to Geneva wall-clock time across
+  DST changes regardless of the server's timezone. It is supported by cronie
+  (RHEL/Alma/Rocky/Fedora) and recent Debian/Ubuntu cron; if your cron lacks
+  it, use the systemd timer variant below or run the host in
+  `Europe/Zurich`.
+- 09:55 lands on the `*/5` grid, so the regular run fires in the same
+  minute. The heartbeat line therefore uses a **blocking** `flock -w 240`
+  (not `-n`): whichever of the two runs grabs the lock first proceeds, and
+  both orders are correct — a heartbeat run performs the full normal cycle
+  anyway, and the regular run either waits its turn or skips via its own
+  `-n`. The weekly heartbeat is never lost.
+
+```cron
+CRON_TZ=Europe/Zurich
+55 9 * * 1 flock -w 240 /tmp/osm-monitor.lock /opt/osm-monitor/bin/osm-monitor-linux-amd64 --heartbeat --env-file /opt/osm-monitor/.env --state-file /var/lib/osm-monitor/state.json >> /var/log/osm-monitor.log 2>&1 || echo "osm-monitor exited $?"
+```
+
+(With systemd instead: add a second service/timer pair for the heartbeat
+with `OnCalendar=Mon *-*-* 09:55:00 Europe/Zurich`.)
+
+A failed heartbeat delivery exits 3 (MAILTO visibility) but never blocks
+state commits — the monitoring cycle itself already succeeded. If the
+heartbeat stops arriving Monday mornings, the monitor host or webhook is
+broken.
 
 ## Exit codes
 

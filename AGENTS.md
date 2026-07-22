@@ -57,6 +57,12 @@ Run `make check` before declaring any change done.
 - Alerts fire **only on transitions** (state change + recovery, with outage
   duration). First sighting of a service: silent if UP, alert if DOWN.
   Detail drift while DOWN never re-alerts.
+- `--heartbeat` runs the full normal cycle and additionally posts an
+  unconditional per-service summary (proof of life). A failed heartbeat
+  delivery exits 3 but never blocks per-service state commits; in
+  `--dry-run` the heartbeat is printed, not sent. Intended schedule:
+  weekly, Monday 09:55 `Europe/Zurich` (see README for the exact cron
+  line and the flock interplay with the 5-minute run).
 - **At-least-once alerts**: on webhook failure the service's new state is not
   committed (`continue` in `run()`), so the next run retries. Exit code 3.
 - Exit codes: 0 success (even if a service is down — alert delivered),

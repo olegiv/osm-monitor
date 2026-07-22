@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -55,6 +56,30 @@ func buildRecoveredMessage(svc serviceCheck, result checkResult, downSince, now 
 		"🟢 **RECOVERED — %s**\n- **Status:** %s\n- **Down since:** %s — **outage duration: %s**\n- **Recovered:** %s\n- **Monitor:** %s",
 		svc.name, result.detail, downSince.UTC().Format(alertTimeFormat), outage,
 		now.UTC().Format(alertTimeFormat), host)
+}
+
+// serviceStatus is the per-service input to the heartbeat summary.
+type serviceStatus struct {
+	name    string
+	healthy bool
+}
+
+// buildHeartbeatMessage summarizes one full cycle. It is sent unconditionally
+// on --heartbeat runs, proving the cron pipeline, the checks, and the webhook
+// are all alive even when no transition happened. Down services show only ❌
+// here — the details live in the DOWN alert.
+func buildHeartbeatMessage(statuses []serviceStatus, now time.Time, host string) string {
+	parts := make([]string, len(statuses))
+	for i, st := range statuses {
+		mark := "✅"
+		if !st.healthy {
+			mark = "❌"
+		}
+		parts[i] = st.name + " " + mark
+	}
+	return fmt.Sprintf(
+		"💓 **HEARTBEAT — osm-monitor**\n- **Services:** %s\n- **Checked:** %s\n- **Monitor:** %s (osm-monitor %s)",
+		strings.Join(parts, " · "), now.UTC().Format(alertTimeFormat), host, version)
 }
 
 func monitorHost() string {

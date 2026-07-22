@@ -207,6 +207,105 @@ func TestRunDryRunSendsAndWritesNothing(t *testing.T) {
 	}
 }
 
+func TestRunHeartbeatSendsSummaryInSteadyState(t *testing.T) {
+	t.Parallel()
+	osm := staticServer(t, http.StatusOK, osmHealthyBody)
+	nominatim := staticServer(t, http.StatusOK, nominatimOKBody)
+	webhook, posts := recordingWebhook(t, http.StatusOK)
+	cfg := e2eConfig(t, webhook.URL, osm.URL, nominatim.URL)
+	cfg.heartbeat = true
+	now := time.Date(2026, 7, 22, 9, 2, 0, 0, time.UTC)
+	since := now.Add(-2 * time.Hour)
+
+	prior := newMonitorState()
+	prior.Services["osm_api"] = serviceState{Healthy: true, Since: since, LastChecked: since}
+	prior.Services["nominatim"] = serviceState{Healthy: true, Since: since, LastChecked: since}
+	if err := saveState(cfg.stateFile, prior); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := run(context.Background(), cfg, e2eDeps(cfg, now, nil)); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if len(*posts) != 1 {
+		t.Fatalf("webhook received %d posts, want exactly 1 (heartbeat only, no alerts)", len(*posts))
+	}
+	for _, want := range []string{"HEARTBEAT", "OSM API ✅", "Nominatim ✅"} {
+		if !strings.Contains((*posts)[0], want) {
+			t.Errorf("post = %q, want substring %q", (*posts)[0], want)
+		}
+	}
+}
+
+func TestRunHeartbeatAlongsideTransitionAlert(t *testing.T) {
+	t.Parallel()
+	osm := staticServer(t, http.StatusServiceUnavailable, "maintenance")
+	nominatim := staticServer(t, http.StatusOK, nominatimOKBody)
+	webhook, posts := recordingWebhook(t, http.StatusOK)
+	cfg := e2eConfig(t, webhook.URL, osm.URL, nominatim.URL)
+	cfg.heartbeat = true
+	now := time.Date(2026, 7, 22, 9, 2, 0, 0, time.UTC)
+
+	if err := run(context.Background(), cfg, e2eDeps(cfg, now, nil)); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if len(*posts) != 2 {
+		t.Fatalf("webhook received %d posts, want 2 (DOWN alert + heartbeat)", len(*posts))
+	}
+	if !strings.Contains((*posts)[0], "DOWN — OSM API") {
+		t.Errorf("first post = %q, want the DOWN alert", (*posts)[0])
+	}
+	for _, want := range []string{"HEARTBEAT", "OSM API ❌", "Nominatim ✅"} {
+		if !strings.Contains((*posts)[1], want) {
+			t.Errorf("second post = %q, want heartbeat with %q", (*posts)[1], want)
+		}
+	}
+}
+
+func TestRunHeartbeatFailureExitsNotifyButCommitsState(t *testing.T) {
+	t.Parallel()
+	osm := staticServer(t, http.StatusOK, osmHealthyBody)
+	webhook, _ := recordingWebhook(t, http.StatusInternalServerError)
+	cfg := e2eConfig(t, webhook.URL, osm.URL, "")
+	cfg.heartbeat = true
+	now := time.Date(2026, 7, 22, 9, 2, 0, 0, time.UTC)
+
+	err := run(context.Background(), cfg, e2eDeps(cfg, now, nil))
+	if !errors.Is(err, errNotify) {
+		t.Fatalf("run error = %v, want errNotify (exit code 3)", err)
+	}
+	// Unlike a failed transition alert, a failed heartbeat must not block
+	// the state commit: the cycle itself succeeded.
+	if svc, ok := loadState(cfg.stateFile).Services["osm_api"]; !ok || !svc.Healthy {
+		t.Errorf("osm_api state = %+v, want committed healthy entry despite heartbeat failure", svc)
+	}
+}
+
+func TestRunDryRunHeartbeatPrintsInsteadOfSending(t *testing.T) {
+	t.Parallel()
+	osm := staticServer(t, http.StatusOK, osmHealthyBody)
+	webhook, posts := recordingWebhook(t, http.StatusOK)
+	cfg := e2eConfig(t, webhook.URL, osm.URL, "")
+	cfg.heartbeat = true
+	cfg.dryRun = true
+	var out bytes.Buffer
+
+	if err := run(context.Background(), cfg, e2eDeps(cfg, time.Now(), &out)); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if len(*posts) != 0 {
+		t.Errorf("webhook received %d posts in dry-run, want 0", len(*posts))
+	}
+	for _, want := range []string{"[dry-run] would send Webex heartbeat", "HEARTBEAT", "OSM API ✅"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("dry-run output %q missing %q", out.String(), want)
+		}
+	}
+	if _, err := os.Stat(cfg.stateFile); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("state file exists after dry-run (stat err = %v), want no write", err)
+	}
+}
+
 func TestRunStatePersistFailure(t *testing.T) {
 	t.Parallel()
 	osm := staticServer(t, http.StatusOK, osmHealthyBody)

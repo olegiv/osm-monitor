@@ -56,6 +56,21 @@ func TestParseConfigDefaults(t *testing.T) {
 	if cfg.verbose || !cfg.dryRun {
 		t.Errorf("verbose = %v dryRun = %v, want false true", cfg.verbose, cfg.dryRun)
 	}
+	if cfg.heartbeat {
+		t.Error("heartbeat = true, want false by default")
+	}
+}
+
+func TestParseConfigHeartbeatFlag(t *testing.T) {
+	t.Parallel()
+	cfg, err := parseConfig([]string{"--heartbeat", "--dry-run"},
+		lookupFrom(map[string]string{"ORS_API_KEY": "k"}))
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if !cfg.heartbeat {
+		t.Error("heartbeat = false, want true from --heartbeat")
+	}
 }
 
 func TestParseConfigEnvOverrides(t *testing.T) {

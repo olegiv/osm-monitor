@@ -117,6 +117,27 @@ func TestBuildRecoveredMessage(t *testing.T) {
 	}
 }
 
+func TestBuildHeartbeatMessage(t *testing.T) {
+	t.Parallel()
+	statuses := []serviceStatus{
+		{name: "OSM API", healthy: true},
+		{name: "Nominatim", healthy: true},
+		{name: "OpenRouteService", healthy: false},
+	}
+	now := time.Date(2026, 7, 22, 9, 2, 0, 0, time.UTC)
+
+	msg := buildHeartbeatMessage(statuses, now, "monitor-host01")
+	for _, want := range []string{
+		"💓", "**HEARTBEAT — osm-monitor**",
+		"OSM API ✅", "Nominatim ✅", "OpenRouteService ❌",
+		"2026-07-22 09:02:00 UTC", "monitor-host01", version,
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("heartbeat message %q missing %q", msg, want)
+		}
+	}
+}
+
 func TestMonitorHost(t *testing.T) {
 	t.Parallel()
 	if monitorHost() == "" {

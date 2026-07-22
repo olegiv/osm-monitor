@@ -97,12 +97,15 @@ func run(ctx context.Context, cfg *config, deps runDeps) error {
 	host := monitorHost()
 
 	var alertsSent, alertsFailed int
+	var heartbeatFailed bool
 	summary := make([]any, 0, 2*len(services)+2)
+	statuses := make([]serviceStatus, 0, len(services))
 
 	for _, svc := range services {
 		result := runCheck(ctx, deps.client, svc, cfg, deps.sleep)
 		now := deps.now().UTC()
 		summary = append(summary, svc.key, statusWord(result.healthy))
+		statuses = append(statuses, serviceStatus{name: svc.name, healthy: result.healthy})
 
 		var prev *serviceState
 		if p, ok := state.Services[svc.key]; ok {
@@ -141,18 +144,34 @@ func run(ctx context.Context, cfg *config, deps runDeps) error {
 	summary = append(summary, "alerts_sent", alertsSent)
 	slog.Info("monitoring cycle complete", summary...) // #nosec G706 -- summary holds static service keys, up/down literals, and a counter
 
+	// The heartbeat is independent of per-service state: a failed heartbeat
+	// exits 3 for visibility but never blocks state commits, since the cycle
+	// itself (and any transition alerts) already succeeded.
+	if cfg.heartbeat {
+		message := buildHeartbeatMessage(statuses, deps.now().UTC(), host)
+		if cfg.dryRun {
+			_, _ = fmt.Fprintf(deps.out, "[dry-run] would send Webex heartbeat:\n%s\n\n", message)
+		} else if err := sendWebex(ctx, deps.client, cfg.webexWebhookURL, message); err != nil {
+			slog.Error("webex heartbeat failed", "error", err) // #nosec G706 -- sendWebex errors carry only the HTTP status or transport cause, never the URL
+			heartbeatFailed = true
+		} else {
+			slog.Info("heartbeat sent")
+		}
+	}
+
+	notifyFailed := alertsFailed > 0 || heartbeatFailed
 	if cfg.dryRun {
 		return nil
 	}
 	if err := saveState(cfg.stateFile, state); err != nil {
-		if alertsFailed > 0 {
+		if notifyFailed {
 			// A missed alert is the worse failure; report it, but log both.
 			slog.Error("state save also failed", "error", err)
 			return errNotify
 		}
 		return fmt.Errorf("%w: %v", errState, err)
 	}
-	if alertsFailed > 0 {
+	if notifyFailed {
 		return errNotify
 	}
 	return nil
@@ -236,6 +255,9 @@ Flags (each falls back to the env var in brackets, then to the default):
   --user-agent UA          Identifying User-Agent per OSM usage policy
                            [OSMMON_USER_AGENT]
   --env-file PATH          Load environment defaults from a KEY=value file
+  --heartbeat              Also post a heartbeat summary message for this
+                           cycle (proof of life; use in a scheduled cron
+                           entry, e.g. weekly)
   --dry-run                Check and print would-be alerts; no webhook POST,
                            no state write
   --verbose                Debug logging [OSMMON_VERBOSE]

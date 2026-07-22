@@ -20,8 +20,8 @@ One-shot monitoring cycle: `main()` parses config (flags > env > `--env-file`
 > defaults, see `config.go`), then `run()` loads the JSON state file, probes
 each enabled service sequentially with retries (`checker.go`), computes
 per-service transitions (`state.go`), sends Webex markdown alerts on
-DOWN/RECOVERED (`webex.go`), persists state atomically, and exits with a
-documented code (0/1/2/3/4). On webhook failure the service's state is not
+DOWN/RECOVERED plus an optional `--heartbeat` cycle summary (`webex.go`),
+persists state atomically, and exits with a documented code (0/1/2/3/4). On webhook failure the service's state is not
 committed so the next cron run retries the alert.
 
 ## Testing seams

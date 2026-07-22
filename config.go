@@ -31,6 +31,7 @@ type config struct {
 	userAgent       string
 	verbose         bool
 	dryRun          bool
+	heartbeat       bool
 }
 
 const (
@@ -123,6 +124,8 @@ func parseConfig(args []string, lookup envLookup) (*config, error) {
 	fs.BoolVar(&cfg.verbose, "verbose", verboseDef, "Enable debug logging")
 	fs.BoolVar(&cfg.dryRun, "dry-run", false,
 		"Check services and print transitions without sending alerts or saving state")
+	fs.BoolVar(&cfg.heartbeat, "heartbeat", false,
+		"Also post a heartbeat summary message for this cycle")
 	// Consumed by the pre-scan in mergedLookup; registered so Parse accepts it.
 	fs.String("env-file", "", "Load environment defaults from a shell-compatible KEY=value file")
 
