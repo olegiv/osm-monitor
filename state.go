@@ -69,7 +69,7 @@ func saveState(path string, st *monitorState) error {
 		return fmt.Errorf("state: creating temp file: %w", err)
 	}
 	tmpName := tmp.Name()
-	defer func() { _ = os.Remove(tmpName) }() // no-op after successful rename
+	defer func() { _ = os.Remove(tmpName) }() // #nosec G703 -- temp file in the operator-supplied state dir; no-op after successful rename
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("state: writing: %w", err)

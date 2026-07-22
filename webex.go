@@ -24,7 +24,7 @@ func sendWebex(ctx context.Context, client *http.Client, webhookURL, markdown st
 	if err != nil {
 		return fmt.Errorf("webex: encoding payload: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhookURL, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhookURL, bytes.NewReader(payload)) // #nosec G704 -- webhook URL is operator config validated to http(s) at startup
 	if err != nil {
 		return errors.New("webex: building request failed")
 	}
