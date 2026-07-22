@@ -12,6 +12,7 @@ make coverage    # coverage summary
 make check       # all quality gates: fmt-check build test vet lint
                  #   staticcheck sec vuln
 make dry-run     # live smoke test; no webhook POST, no state write
+make heartbeat   # real cycle + real heartbeat POST (only on user request)
 ```
 
 ## Architecture in one paragraph

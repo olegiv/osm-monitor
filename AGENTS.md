@@ -28,6 +28,8 @@ make build       # dev build -> bin/osm-monitor
 make test        # unit tests (always offline)
 make check       # fmt-check build test vet lint staticcheck sec vuln
 make dry-run     # live-endpoint smoke test, sends/writes nothing
+make heartbeat   # real cycle + posts heartbeat to the webhook — never run
+                 #   without an explicit user request (sends a real message)
 make build-all-platforms  # linux-amd64 + darwin-arm64 release binaries
 ```
 

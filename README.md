@@ -152,11 +152,16 @@ The heartbeat is scheduled **weekly: Monday 09:55 Geneva time**
 
 ```cron
 CRON_TZ=Europe/Zurich
-55 9 * * 1 flock -w 240 /tmp/osm-monitor.lock /opt/osm-monitor/bin/osm-monitor-linux-amd64 --heartbeat --env-file /opt/osm-monitor/.env --state-file /var/lib/osm-monitor/state.json >> /var/log/osm-monitor.log 2>&1 || echo "osm-monitor exited $?"
+55 9 * * 1 flock -w 240 /tmp/osm-monitor.lock /opt/osm-monitor/bin/osm-monitor-linux-amd64 --heartbeat --env-file /opt/osm-monitor/.env >> /var/log/osm-monitor.log 2>&1 || echo "osm-monitor exited $?"
 ```
 
 (With systemd instead: add a second service/timer pair for the heartbeat
 with `OnCalendar=Mon *-*-* 09:55:00 Europe/Zurich`.)
+
+To trigger one manually (e.g. after deploying): `make heartbeat` — a real
+cycle that posts the summary to the configured webhook. Use
+`./bin/osm-monitor --heartbeat --dry-run --env-file .env` to preview the
+message without sending.
 
 A failed heartbeat delivery exits 3 (MAILTO visibility) but never blocks
 state commits — the monitoring cycle itself already succeeded. If the
@@ -186,9 +191,18 @@ make check                # fmt-check + build + test + vet + golangci-lint
 
 ## Deployment (cron on Linux)
 
+All settings live in the server-side `.env`, so the cron line only needs
+`--env-file`. In `/opt/osm-monitor/.env`, set the state file to an absolute
+path (the built-in default `./osm-monitor-state.json` is relative to cron's
+working directory — the cron user's home — so don't rely on it in cron):
+
+```sh
+OSMMON_STATE_FILE="/var/lib/osm-monitor/state.json"
+```
+
 ```cron
 MAILTO=ops@example.org
-*/5 * * * * flock -n /tmp/osm-monitor.lock /opt/osm-monitor/bin/osm-monitor-linux-amd64 --env-file /opt/osm-monitor/.env --state-file /var/lib/osm-monitor/state.json >> /var/log/osm-monitor.log 2>&1 || echo "osm-monitor exited $?"
+*/5 * * * * flock -n /tmp/osm-monitor.lock /opt/osm-monitor/bin/osm-monitor-linux-amd64 --env-file /opt/osm-monitor/.env >> /var/log/osm-monitor.log 2>&1 || echo "osm-monitor exited $?"
 ```
 
 - `flock -n` skips a run if the previous one is still going.
@@ -197,6 +211,9 @@ MAILTO=ops@example.org
   when Webex itself is unreachable.
 - Create `/var/lib/osm-monitor/` writable by the cron user; `chmod 600` the
   server-side `.env`.
+- `--env-file` itself intentionally has no default: the binary never
+  implicitly loads a `.env` from its working directory, so a stray or
+  planted file can't inject a webhook URL or API key.
 
 <details>
 <summary>systemd timer alternative</summary>
@@ -210,7 +227,7 @@ Description=OSM availability monitor
 [Service]
 Type=oneshot
 EnvironmentFile=/opt/osm-monitor/.env
-ExecStart=/opt/osm-monitor/bin/osm-monitor-linux-amd64 --state-file /var/lib/osm-monitor/state.json
+ExecStart=/opt/osm-monitor/bin/osm-monitor-linux-amd64
 ```
 
 `/etc/systemd/system/osm-monitor.timer`:

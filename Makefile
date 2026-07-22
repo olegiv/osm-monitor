@@ -13,7 +13,7 @@ LDFLAGS_VERSION := -X main.version=$(VERSION) -X main.gitCommit=$(GIT_COMMIT) -X
 
 RUN_WITH_ENV = set -a; if [[ -f "$(ENV_FILE)" ]]; then . "$(ENV_FILE)"; fi; set +a;
 
-.PHONY: help build build-prod build-linux-amd64 build-darwin-arm64 build-all-platforms test coverage fmt-check vet lint staticcheck sec vuln check run dry-run clean
+.PHONY: help build build-prod build-linux-amd64 build-darwin-arm64 build-all-platforms test coverage fmt-check vet lint staticcheck sec vuln check run dry-run heartbeat clean
 
 help:
 	@printf '%s\n' \
@@ -34,6 +34,7 @@ help:
 		'  make check                Run all quality gates (fmt, build, test, vet, lint, staticcheck, sec, vuln)' \
 		'  make run                  Run one monitoring cycle using .env when present' \
 		'  make dry-run              Run one monitoring cycle without sending alerts or saving state' \
+		'  make heartbeat            Run one monitoring cycle and post the heartbeat summary' \
 		'  make clean                Remove build artifacts'
 
 build:
@@ -93,6 +94,9 @@ run: build
 
 dry-run: build
 	@$(RUN_WITH_ENV) ./$(BUILD_DIR)/$(BINARY_NAME) --dry-run --verbose
+
+heartbeat: build
+	@$(RUN_WITH_ENV) ./$(BUILD_DIR)/$(BINARY_NAME) --heartbeat
 
 clean:
 	rm -rf $(BUILD_DIR) coverage.out
