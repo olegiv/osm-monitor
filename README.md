@@ -30,6 +30,51 @@ make run               # real monitoring cycle
 
 Zero third-party Go dependencies — standard library only.
 
+## Creating the Webex incoming webhook
+
+The monitor posts alerts through a Webex **incoming webhook** — a URL that
+accepts POSTed messages into one space. One-time setup:
+
+1. **Pick or create the target space** in the Webex app (`Cmd+Shift+N` /
+   `Ctrl+Shift+N` → name it, e.g. *OSM Monitoring* → **Create**), and add the
+   teammates who should see the alerts.
+2. **Open the Incoming Webhooks page on Webex App Hub**:
+   <https://apphub.webex.com/applications/incoming-webhooks-cisco-systems-38054-23307-75252>
+   and sign in with your corporate Webex account (click **Connect** if asked
+   to authorize the app).
+3. **Create the webhook**: in the webhook form enter a name (e.g.
+   `osm-monitor` — this becomes the sender name shown in the space), select
+   the target space, and click **Add**.
+4. **Copy the generated webhook URL** from the new entry (expand it if
+   collapsed). It looks like
+   `https://webexapis.com/v1/webhooks/incoming/Y2lzY29zcGFy...`.
+5. **Put it in `.env`** on the machine that runs the monitor:
+
+   ```sh
+   OSMMON_WEBEX_WEBHOOK_URL="https://webexapis.com/v1/webhooks/incoming/<your-id>"
+   ```
+
+6. **Test it** — the message should appear in the space within seconds:
+
+   ```bash
+   set -a; . ./.env; set +a; curl -sS -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{"markdown":"✅ **osm-monitor** webhook test"}' "$OSMMON_WEBEX_WEBHOOK_URL"
+   ```
+
+   Any `2xx` status (usually `204`) means success.
+
+Notes:
+
+- **The webhook URL is a credential** — anyone who has it can post into the
+  space. Keep it only in `.env` (gitignored here, `chmod 600` on servers).
+  To rotate it, delete the webhook on the App Hub page and create a new one,
+  then update `.env`.
+- In managed corporate orgs the integration may be disabled by policy. If
+  App Hub refuses to add the webhook, ask your Webex org admin to enable the
+  **Incoming Webhooks** app in Control Hub (Apps → search for "Incoming
+  Webhook").
+- Incoming webhooks accept plain text or markdown only (no cards, no
+  @-mentions) — exactly what this monitor sends.
+
 ## Configuration
 
 Precedence: **flags > environment > `--env-file` entries > defaults**.
