@@ -48,19 +48,26 @@ type runDeps struct {
 }
 
 func main() {
+	os.Exit(realMain())
+}
+
+// realMain returns the exit code instead of calling os.Exit directly, so
+// deferred cleanup (signal.NotifyContext's stop) runs before the process
+// exits.
+func realMain() int {
 	args := os.Args[1:]
 	if wantsVersion(args) {
 		printVersion(os.Stdout)
-		return
+		return exitOK
 	}
 	cfg, err := parseConfig(args, os.LookupEnv)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			printUsage(os.Stdout)
-			return
+			return exitOK
 		}
 		fmt.Fprintf(os.Stderr, "osm-monitor: %v\nRun 'osm-monitor --help' for usage.\n", err)
-		os.Exit(exitConfig)
+		return exitConfig
 	}
 	setupLogging(cfg.verbose)
 
@@ -77,14 +84,14 @@ func main() {
 		slog.Error("run failed", "error", err)
 		switch {
 		case errors.Is(err, errNotify):
-			os.Exit(exitNotify)
+			return exitNotify
 		case errors.Is(err, errState):
-			os.Exit(exitState)
+			return exitState
 		default:
-			os.Exit(exitRuntime)
+			return exitRuntime
 		}
 	}
-	os.Exit(exitOK)
+	return exitOK
 }
 
 // run executes one monitoring cycle: check every enabled service, alert on
@@ -169,7 +176,7 @@ func run(ctx context.Context, cfg *config, deps runDeps) error {
 			slog.Error("state save also failed", "error", err)
 			return errNotify
 		}
-		return fmt.Errorf("%w: %v", errState, err)
+		return fmt.Errorf("%w: %w", errState, err)
 	}
 	if notifyFailed {
 		return errNotify

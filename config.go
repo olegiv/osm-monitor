@@ -158,10 +158,10 @@ func (c *config) validate() error {
 		return errors.New("webex webhook URL is required (set OSMMON_WEBEX_WEBHOOK_URL or --webex-webhook-url)")
 	}
 	for _, item := range []struct{ name, value string }{
-		{"webex-webhook-url", c.webexWebhookURL},
-		{"osm-url", c.osmURL},
-		{"nominatim-url", c.nominatimURL},
-		{"ors-url", c.orsURL},
+		{name: "webex-webhook-url", value: c.webexWebhookURL},
+		{name: "osm-url", value: c.osmURL},
+		{name: "nominatim-url", value: c.nominatimURL},
+		{name: "ors-url", value: c.orsURL},
 	} {
 		if item.value == "" {
 			continue

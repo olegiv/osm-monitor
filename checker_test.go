@@ -121,11 +121,11 @@ func TestParseORSDirections(t *testing.T) {
 	}
 }
 
-func testCfg(attempts int, backoff, timeout time.Duration) *config {
+func testCfg(attempts int, backoff time.Duration) *config {
 	return &config{
 		attempts:  attempts,
 		backoff:   backoff,
-		timeout:   timeout,
+		timeout:   time.Second,
 		userAgent: "test-agent/1.0",
 	}
 }
@@ -145,7 +145,7 @@ func TestRunCheckRetriesThenSucceeds(t *testing.T) {
 
 	var sleeps []time.Duration
 	svc := serviceCheck{name: "OSM API", key: "osm_api", url: server.URL, parse: parseOSMCapabilities}
-	result := runCheck(context.Background(), server.Client(), svc, testCfg(3, 5*time.Second, time.Second),
+	result := runCheck(context.Background(), server.Client(), svc, testCfg(3, 5*time.Second),
 		func(d time.Duration) { sleeps = append(sleeps, d) })
 
 	if !result.healthy || result.attempts != 3 {
@@ -168,7 +168,7 @@ func TestRunCheckAllAttemptsFail(t *testing.T) {
 	defer server.Close()
 
 	svc := serviceCheck{name: "Nominatim", key: "nominatim", url: server.URL, parse: parseNominatimStatus}
-	result := runCheck(context.Background(), server.Client(), svc, testCfg(3, 0, time.Second),
+	result := runCheck(context.Background(), server.Client(), svc, testCfg(3, 0),
 		func(time.Duration) {})
 
 	if result.healthy {
@@ -191,7 +191,7 @@ func TestRunCheckFirstTrySuccessSkipsBackoff(t *testing.T) {
 
 	var sleeps int
 	svc := serviceCheck{name: "Nominatim", key: "nominatim", url: server.URL, parse: parseNominatimStatus}
-	result := runCheck(context.Background(), server.Client(), svc, testCfg(3, 5*time.Second, time.Second),
+	result := runCheck(context.Background(), server.Client(), svc, testCfg(3, 5*time.Second),
 		func(time.Duration) { sleeps++ })
 
 	if !result.healthy || result.attempts != 1 || sleeps != 0 {
@@ -209,7 +209,7 @@ func TestRunCheckTimeout(t *testing.T) {
 
 	client := &http.Client{Timeout: 50 * time.Millisecond}
 	svc := serviceCheck{name: "Nominatim", key: "nominatim", url: server.URL, parse: parseNominatimStatus}
-	result := runCheck(context.Background(), client, svc, testCfg(1, 0, time.Second),
+	result := runCheck(context.Background(), client, svc, testCfg(1, 0),
 		func(time.Duration) {})
 
 	if result.healthy {
@@ -230,7 +230,7 @@ func TestRunCheckCanceledContextStopsRetrying(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	svc := serviceCheck{name: "OSM API", key: "osm_api", url: server.URL, parse: parseOSMCapabilities}
-	result := runCheck(ctx, server.Client(), svc, testCfg(3, 0, time.Second), func(time.Duration) {})
+	result := runCheck(ctx, server.Client(), svc, testCfg(3, 0), func(time.Duration) {})
 
 	if result.attempts != 1 {
 		t.Errorf("attempts = %d, want 1 (no retries after cancellation)", result.attempts)
@@ -258,7 +258,7 @@ func TestRunCheckSendsHeaders(t *testing.T) {
 		headers: map[string]string{"Authorization": apiKey},
 		parse:   parseORSDirections,
 	}
-	result := runCheck(context.Background(), server.Client(), svc, testCfg(1, 0, time.Second),
+	result := runCheck(context.Background(), server.Client(), svc, testCfg(1, 0),
 		func(time.Duration) {})
 
 	if gotUA != "test-agent/1.0" {
@@ -288,7 +288,7 @@ func TestCheckerDetailsNeverContainAPIKey(t *testing.T) {
 		headers: map[string]string{"Authorization": apiKey},
 		parse:   parseORSDirections,
 	}
-	result := runCheck(context.Background(), server.Client(), svc, testCfg(2, 0, time.Second),
+	result := runCheck(context.Background(), server.Client(), svc, testCfg(2, 0),
 		func(time.Duration) {})
 
 	if result.healthy {
@@ -310,7 +310,7 @@ func TestRunCheckSanitizesDetail(t *testing.T) {
 	defer server.Close()
 
 	svc := serviceCheck{name: "Nominatim", key: "nominatim", url: server.URL, parse: parseNominatimStatus}
-	result := runCheck(context.Background(), server.Client(), svc, testCfg(1, 0, time.Second),
+	result := runCheck(context.Background(), server.Client(), svc, testCfg(1, 0),
 		func(time.Duration) {})
 
 	if result.healthy {

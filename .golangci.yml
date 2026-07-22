@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  # Adds to the default set (errcheck, govet, ineffassign, staticcheck, unused).
+  enable:
+    - dupl
+    - errorlint
+    - gocritic
+    - gocyclo
+    - misspell
+    - unconvert
+    - unparam
+    - usetesting
