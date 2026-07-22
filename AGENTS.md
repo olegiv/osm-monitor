@@ -35,6 +35,13 @@ make build-all-platforms  # linux-amd64 + darwin-arm64 release binaries
 
 Run `make check` before declaring any change done.
 
+Slash commands (symlinked from the `.claude/shared` submodule):
+`/commit-prepare` drafts the commit message (user approval required, add the
+`TINT-…` prefix), then `/commit-do` executes it; `/code-quality` scans the
+Go project; `/security-audit` writes findings to the gitignored `.audit/`;
+`/update-submodule` refreshes the shared tools; `/setup-project-tools`
+regenerates project tooling. Matching agents live in `.claude/agents/`.
+
 ## Safety rules
 
 - **Never commit `.env`** or any webhook URL / API key. The Webex webhook URL
