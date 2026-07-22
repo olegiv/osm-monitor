@@ -165,16 +165,19 @@ func (c *config) validate() error {
 	if !c.dryRun && c.webexWebhookURL == "" {
 		return errors.New("webex webhook URL is required (set OSMMON_WEBEX_WEBHOOK_URL or --webex-webhook-url)")
 	}
-	for _, item := range []struct{ name, value string }{
-		{name: "webex-webhook-url", value: c.webexWebhookURL},
+	for _, item := range []struct {
+		name, value string
+		httpsOnly   bool
+	}{
+		{name: "webex-webhook-url", value: c.webexWebhookURL, httpsOnly: true},
 		{name: "osm-url", value: c.osmURL},
 		{name: "nominatim-url", value: c.nominatimURL},
-		{name: "ors-url", value: c.orsURL},
+		{name: "ors-url", value: c.orsURL, httpsOnly: true},
 	} {
 		if item.value == "" {
 			continue
 		}
-		if err := validateHTTPURL(item.name, item.value); err != nil {
+		if err := validateHTTPURL(item.name, item.value, item.httpsOnly); err != nil {
 			return err
 		}
 	}
@@ -188,10 +191,17 @@ func (c *config) validate() error {
 	return nil
 }
 
-func validateHTTPURL(name, raw string) error {
+// validateHTTPURL checks that raw is a usable http(s) URL. httpsOnly is set
+// for credential-bearing URLs — the Webex webhook URL is itself a bearer
+// token and ORS requests carry the API key — which must never cross the
+// network in cleartext.
+func validateHTTPURL(name, raw string, httpsOnly bool) error {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return fmt.Errorf("%s: invalid URL %q (must be http or https)", name, raw)
+	}
+	if httpsOnly && u.Scheme != "https" {
+		return fmt.Errorf("%s: must use https, got %q (the request carries a credential)", name, raw)
 	}
 	return nil
 }

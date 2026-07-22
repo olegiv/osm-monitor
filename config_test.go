@@ -212,6 +212,10 @@ func TestParseConfigErrors(t *testing.T) {
 		{"non-http url", []string{"--osm-url", "ftp://osm.example.org"}, base, "invalid URL"},
 		{"garbage webhook url", nil, map[string]string{
 			"OSMMON_WEBEX_WEBHOOK_URL": "not a url", "ORS_API_KEY": "k"}, "invalid URL"},
+		{"http webhook url", nil, map[string]string{
+			"OSMMON_WEBEX_WEBHOOK_URL": "http://webexapis.com/v1/webhooks/incoming/abc",
+			"ORS_API_KEY":              "k"}, "must use https"},
+		{"http ors url", []string{"--ors-url", "http://ors.example.org/route"}, base, "must use https"},
 		{"missing ors key", nil, map[string]string{
 			"OSMMON_WEBEX_WEBHOOK_URL": "https://webexapis.com/v1/webhooks/incoming/abc"},
 			"ORS API key is required"},
@@ -233,6 +237,19 @@ func TestParseConfigErrors(t *testing.T) {
 				t.Errorf("error = %q, want substring %q", err, tc.wantSub)
 			}
 		})
+	}
+}
+
+func TestParseConfigAllowsHTTPForCredentialFreeURLs(t *testing.T) {
+	t.Parallel()
+	cfg, err := parseConfig(
+		[]string{"--osm-url", "http://internal.example.org/caps.json", "--dry-run"},
+		lookupFrom(map[string]string{"ORS_API_KEY": "k"}))
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if cfg.osmURL != "http://internal.example.org/caps.json" {
+		t.Errorf("osmURL = %q, want plain-http URL accepted for credential-free check", cfg.osmURL)
 	}
 }
 
