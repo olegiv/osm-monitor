@@ -229,8 +229,26 @@ Description=OSM availability monitor
 
 [Service]
 Type=oneshot
+User=osm-monitor
+Group=osm-monitor
 EnvironmentFile=/opt/osm-monitor/.env
 ExecStart=/opt/osm-monitor/bin/osm-monitor-linux-amd64
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/osm-monitor
+```
+
+The monitor needs no privileges — it makes outbound HTTPS requests and
+writes one state file — so the unit runs as a dedicated user with the
+rest of the filesystem read-only (`ReadWritePaths` must match the
+`OSMMON_STATE_FILE` directory). Create the user and state directory
+first:
+
+```sh
+useradd -r -s /usr/sbin/nologin osm-monitor
+install -d -o osm-monitor -g osm-monitor -m 750 /var/lib/osm-monitor
 ```
 
 `/etc/systemd/system/osm-monitor.timer`:
