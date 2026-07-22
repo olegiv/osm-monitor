@@ -117,6 +117,27 @@ func TestBuildRecoveredMessage(t *testing.T) {
 	}
 }
 
+func TestAlertMessagesNeutralizeDetailMarkdown(t *testing.T) {
+	t.Parallel()
+	svc := serviceCheck{name: "OSM API", key: "osm_api"}
+	result := checkResult{
+		detail:   "see [status page](https://evil.example/phish) `now`",
+		attempts: 1,
+	}
+	now := time.Date(2026, 7, 22, 9, 2, 0, 0, time.UTC)
+
+	down := buildDownMessage(svc, result, now, "host")
+	recovered := buildRecoveredMessage(svc, result, now.Add(-time.Hour), now, "host")
+	// The remote-derived detail must be wrapped in a code span, with input
+	// backticks replaced, so markdown (e.g. the link) renders as literal text.
+	const wantSpan = "`see [status page](https://evil.example/phish) 'now'`"
+	for _, msg := range []string{down, recovered} {
+		if !strings.Contains(msg, wantSpan) {
+			t.Errorf("message %q missing code-span-wrapped detail %q", msg, wantSpan)
+		}
+	}
+}
+
 func TestBuildHeartbeatMessage(t *testing.T) {
 	t.Parallel()
 	statuses := []serviceStatus{

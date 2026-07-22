@@ -203,9 +203,11 @@ func TestParseConfigErrors(t *testing.T) {
 		{"bad timeout env", nil, withBase(map[string]string{"OSMMON_TIMEOUT": "abc"}), "invalid duration"},
 		{"bad attempts env", nil, withBase(map[string]string{"OSMMON_ATTEMPTS": "many"}), "invalid integer"},
 		{"bad verbose env", nil, withBase(map[string]string{"OSMMON_VERBOSE": "maybe"}), "invalid boolean"},
-		{"zero attempts flag", []string{"--attempts", "0"}, base, "attempts must be >= 1"},
+		{"zero attempts flag", []string{"--attempts", "0"}, base, "attempts must be between 1 and"},
+		{"excessive attempts flag", []string{"--attempts", "20"}, base, "attempts must be between 1 and"},
 		{"zero timeout flag", []string{"--timeout", "0s"}, base, "timeout must be > 0"},
-		{"negative backoff flag", []string{"--backoff", "-1s"}, base, "backoff must be >= 0"},
+		{"negative backoff flag", []string{"--backoff", "-1s"}, base, "backoff must be between 0 and"},
+		{"excessive backoff flag", []string{"--backoff", "10m"}, base, "backoff must be between 0 and"},
 		{"empty user agent", []string{"--user-agent", "  "}, base, "user agent"},
 		{"non-http url", []string{"--osm-url", "ftp://osm.example.org"}, base, "invalid URL"},
 		{"garbage webhook url", nil, map[string]string{

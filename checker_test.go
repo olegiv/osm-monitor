@@ -157,6 +157,38 @@ func TestRunCheckRetriesThenSucceeds(t *testing.T) {
 	}
 }
 
+func TestBackoffFor(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		base    time.Duration
+		attempt int
+		want    time.Duration
+	}{
+		{"no delay before first attempt", 5 * time.Second, 1, 0},
+		{"base before second attempt", 5 * time.Second, 2, 5 * time.Second},
+		{"doubled before third attempt", 5 * time.Second, 3, 10 * time.Second},
+		{"zero base stays zero", 0, 5, 0},
+		{"capped instead of multi-day sleep", 5 * time.Second, 20, maxBackoff},
+		{"huge shift still capped", 5 * time.Second, 500, maxBackoff},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := backoffFor(tc.base, tc.attempt); got != tc.want {
+				t.Errorf("backoffFor(%s, %d) = %s, want %s", tc.base, tc.attempt, got, tc.want)
+			}
+		})
+	}
+	// The doubling must never leave [0, maxBackoff] for any attempt count,
+	// even with the largest base validation allows (overflow regression net).
+	for attempt := 1; attempt <= 1000; attempt++ {
+		if d := backoffFor(maxBackoff, attempt); d < 0 || d > maxBackoff {
+			t.Fatalf("backoffFor(%s, %d) = %s, want within [0, %s]", maxBackoff, attempt, d, maxBackoff)
+		}
+	}
+}
+
 func TestRunCheckAllAttemptsFail(t *testing.T) {
 	t.Parallel()
 	var calls int

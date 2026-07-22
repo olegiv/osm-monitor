@@ -66,13 +66,13 @@ func buildServices(cfg *config) []serviceCheck {
 
 // runCheck probes one service with retries, returning healthy as soon as an
 // attempt succeeds. After the final failed attempt the last failure reason is
-// kept. Backoff doubles per retry (base, 2×base, ...); sleep is injectable so
-// tests can record delays without waiting.
+// kept. Backoff doubles per retry (base, 2×base, ..., capped at maxBackoff);
+// sleep is injectable so tests can record delays without waiting.
 func runCheck(ctx context.Context, client *http.Client, svc serviceCheck, cfg *config, sleep func(time.Duration)) checkResult {
 	var last checkResult
 	for attempt := 1; attempt <= cfg.attempts; attempt++ {
 		if attempt > 1 {
-			sleep(cfg.backoff << (attempt - 2))
+			sleep(backoffFor(cfg.backoff, attempt))
 		}
 		healthy, detail := probe(ctx, client, svc, cfg.userAgent)
 		last = checkResult{healthy: healthy, detail: sanitizeDetail(detail), attempts: attempt}
@@ -83,6 +83,22 @@ func runCheck(ctx context.Context, client *http.Client, svc serviceCheck, cfg *c
 		}
 	}
 	return last
+}
+
+// backoffFor returns the delay before the given 1-based attempt: none before
+// the first, then base, 2×base, 4×base, ... capped at maxBackoff. Comparing
+// against the right-shifted cap before shifting keeps the doubling from ever
+// overflowing time.Duration, independently of config validation (defense in
+// depth).
+func backoffFor(base time.Duration, attempt int) time.Duration {
+	if attempt <= 1 || base <= 0 {
+		return 0
+	}
+	shift := uint(attempt - 2)
+	if base > maxBackoff>>shift {
+		return maxBackoff
+	}
+	return base << shift
 }
 
 func probe(ctx context.Context, client *http.Client, svc serviceCheck, userAgent string) (bool, string) {

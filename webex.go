@@ -44,17 +44,24 @@ func sendWebex(ctx context.Context, client *http.Client, webhookURL, markdown st
 	return nil
 }
 
+// markdownSafe renders remote-derived text as a literal markdown code span so
+// upstream response content can never inject links or formatting into alerts.
+// Backticks are swapped for quotes so the span cannot be closed early.
+func markdownSafe(s string) string {
+	return "`" + strings.ReplaceAll(s, "`", "'") + "`"
+}
+
 func buildDownMessage(svc serviceCheck, result checkResult, now time.Time, host string) string {
 	return fmt.Sprintf(
 		"🔴 **DOWN — %s**\n- **Reason:** %s\n- **Checked:** %s (%d attempt(s))\n- **Monitor:** %s",
-		svc.name, result.detail, now.UTC().Format(alertTimeFormat), result.attempts, host)
+		svc.name, markdownSafe(result.detail), now.UTC().Format(alertTimeFormat), result.attempts, host)
 }
 
 func buildRecoveredMessage(svc serviceCheck, result checkResult, downSince, now time.Time, host string) string {
 	outage := now.Sub(downSince).Round(time.Second)
 	return fmt.Sprintf(
 		"🟢 **RECOVERED — %s**\n- **Status:** %s\n- **Down since:** %s — **outage duration: %s**\n- **Recovered:** %s\n- **Monitor:** %s",
-		svc.name, result.detail, downSince.UTC().Format(alertTimeFormat), outage,
+		svc.name, markdownSafe(result.detail), downSince.UTC().Format(alertTimeFormat), outage,
 		now.UTC().Format(alertTimeFormat), host)
 }
 

@@ -42,6 +42,14 @@ const (
 	defaultTimeout      = 10 * time.Second
 	defaultAttempts     = 3
 	defaultBackoff      = 5 * time.Second
+
+	// maxAttempts and maxBackoff bound the retry knobs: the backoff doubles
+	// per attempt, so an unbounded value (e.g. a typo like --attempts 20)
+	// would turn one retry delay into days — and under a flock-based cron
+	// setup a stuck cycle blocks every later run. See backoffFor in
+	// checker.go for the matching runtime clamp.
+	maxAttempts = 10
+	maxBackoff  = 5 * time.Minute
 )
 
 // defaultUserAgent identifies this monitor per the OSM/Nominatim usage
@@ -142,14 +150,14 @@ func parseConfig(args []string, lookup envLookup) (*config, error) {
 }
 
 func (c *config) validate() error {
-	if c.attempts < 1 {
-		return fmt.Errorf("attempts must be >= 1, got %d", c.attempts)
+	if c.attempts < 1 || c.attempts > maxAttempts {
+		return fmt.Errorf("attempts must be between 1 and %d, got %d", maxAttempts, c.attempts)
 	}
 	if c.timeout <= 0 {
 		return fmt.Errorf("timeout must be > 0, got %s", c.timeout)
 	}
-	if c.backoff < 0 {
-		return fmt.Errorf("backoff must be >= 0, got %s", c.backoff)
+	if c.backoff < 0 || c.backoff > maxBackoff {
+		return fmt.Errorf("backoff must be between 0 and %s, got %s", maxBackoff, c.backoff)
 	}
 	if strings.TrimSpace(c.userAgent) == "" {
 		return errors.New("user agent must not be empty")
