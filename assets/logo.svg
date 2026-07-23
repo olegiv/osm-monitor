@@ -1,0 +1,47 @@
+<svg width="768" height="768" viewBox="0 0 768 768" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="38%" cy="30%" r="95%">
+      <stop offset="0%" stop-color="#0E1B30"/>
+      <stop offset="100%" stop-color="#070E1A"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="13"/>
+    </filter>
+  </defs>
+
+  <rect width="768" height="768" fill="url(#bg)"/>
+
+  <!-- graticule: strict 64px survey module; the weighted pair is excluded here -->
+  <g stroke="#1B2B44" stroke-width="2">
+    <path d="M64 0V768M128 0V768M192 0V768M256 0V768M384 0V768M448 0V768M512 0V768M576 0V768M640 0V768M704 0V768"/>
+    <path d="M0 64H768M0 128H768M0 192H768M0 256H768M0 320H768M0 384H768M0 512H768M0 576H768M0 640H768M0 704H768"/>
+  </g>
+  <!-- weighted meridian and parallel: the grid thickens to receive the signal -->
+  <g stroke="#27395A" stroke-width="3">
+    <path d="M320 0V768"/>
+    <path d="M0 448H768"/>
+  </g>
+
+  <!-- registration crosses -->
+  <g stroke="#31486E" stroke-width="2.5">
+    <path d="M112 128H144M128 112V144"/>
+    <path d="M624 128H656M640 112V144"/>
+    <path d="M112 640H144M128 624V656"/>
+    <path d="M624 640H656M640 624V656"/>
+  </g>
+
+  <!-- the pulse: glow pass, then the line -->
+  <path d="M64 448H192L216 420L240 448H288L304 524L320 240L352 520L384 448H576"
+        fill="none" stroke="#35D399" stroke-width="16" stroke-linecap="round"
+        stroke-linejoin="round" opacity="0.42" filter="url(#glow)"/>
+  <path d="M64 448H192L216 420L240 448H288L304 524L320 240L352 520L384 448H576"
+        fill="none" stroke="#3BE3A4" stroke-width="15" stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- the alert instant -->
+  <circle cx="320" cy="240" r="9" fill="#F2B24B"/>
+
+  <!-- presence: the still-here point -->
+  <circle cx="640" cy="448" r="44" fill="none" stroke="#35D399" stroke-width="6" opacity="0.22"/>
+  <circle cx="640" cy="448" r="26" fill="#3BE3A4"/>
+</svg>
