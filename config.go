@@ -199,7 +199,7 @@ func validateHTTPURL(name, raw string, httpsOnly bool) error {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		if httpsOnly {
-			return fmt.Errorf("%s: invalid URL (must be http or https)", name)
+			return fmt.Errorf("%s: invalid URL (must be https)", name)
 		}
 		return fmt.Errorf("%s: invalid URL %q (must be http or https)", name, raw)
 	}

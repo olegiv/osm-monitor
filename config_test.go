@@ -286,6 +286,12 @@ func TestParseConfigDoesNotExposeCredentialURLsInErrors(t *testing.T) {
 			if strings.Contains(err.Error(), tc.secret) {
 				t.Errorf("error exposes credential URL: %q", err)
 			}
+			if strings.Contains(err.Error(), "http or https") {
+				t.Errorf("error suggests plain http is acceptable for a credential URL: %q", err)
+			}
+			if !strings.Contains(err.Error(), "https") {
+				t.Errorf("error does not point to the https requirement: %q", err)
+			}
 		})
 	}
 }
