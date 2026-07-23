@@ -60,8 +60,15 @@ accepts POSTed messages into one space. One-time setup:
 6. **Test it** — the message should appear in the space within seconds:
 
    ```bash
-   set -a; . ./.env; set +a; curl -sS -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{"markdown":"✅ **osm-monitor** webhook test"}' "$OSMMON_WEBEX_WEBHOOK_URL"
+   set -a; . ./.env; set +a
+   printf 'url = "%s"\n' "$OSMMON_WEBEX_WEBHOOK_URL" | \
+     curl --config - -sS -o /dev/null -w '%{http_code}\n' -X POST \
+       -H 'Content-Type: application/json' \
+       -d '{"markdown":"✅ **osm-monitor** webhook test"}'
    ```
+
+   This passes the URL through curl's standard-input configuration rather
+   than exposing the credential in curl's command-line arguments.
 
    Any `2xx` status (usually `204`) means success.
 
