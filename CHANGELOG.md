@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-23
+
+### Security
+
+- Config validation errors for credential-bearing URLs
+  (`--webex-webhook-url`, `--ors-url`) no longer echo the raw URL, so a
+  malformed value cannot leak a webhook token or API key to stderr,
+  cron MAILTO, or logs; the redacted message names only the field and
+  the https requirement (TINT-6010; ships with regression tests).
+- The README webhook test now pipes the URL to `curl --config -` via
+  stdin instead of expanding it in argv, so the bearer webhook URL is
+  not visible in process listings while the test runs (TINT-6010).
+
 ## [0.1.0] - 2026-07-22
 
 ### Added
@@ -47,5 +60,6 @@ and this project adheres to
   instead of root (CFG-002); CI actions are pinned to commit SHAs and
   tools to exact versions (CFG-004).
 
-[Unreleased]: https://github.com/olegiv/osm-monitor/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/olegiv/osm-monitor/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/olegiv/osm-monitor/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/olegiv/osm-monitor/releases/tag/v0.1.0
