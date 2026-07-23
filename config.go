@@ -198,10 +198,13 @@ func (c *config) validate() error {
 func validateHTTPURL(name, raw string, httpsOnly bool) error {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		if httpsOnly {
+			return fmt.Errorf("%s: invalid URL (must be https)", name)
+		}
 		return fmt.Errorf("%s: invalid URL %q (must be http or https)", name, raw)
 	}
 	if httpsOnly && u.Scheme != "https" {
-		return fmt.Errorf("%s: must use https, got %q (the request carries a credential)", name, raw)
+		return fmt.Errorf("%s: must use https (the request carries a credential)", name)
 	}
 	return nil
 }

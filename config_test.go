@@ -253,6 +253,49 @@ func TestParseConfigAllowsHTTPForCredentialFreeURLs(t *testing.T) {
 	}
 }
 
+func TestParseConfigDoesNotExposeCredentialURLsInErrors(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		args   []string
+		env    map[string]string
+		secret string
+	}{
+		{
+			name: "http webhook",
+			env: map[string]string{
+				"OSMMON_WEBEX_WEBHOOK_URL": "http://webex.example.test/incoming/webhook-secret",
+				"ORS_API_KEY":              "key",
+			},
+			secret: "webhook-secret",
+		},
+		{
+			name:   "invalid ORS URL",
+			args:   []string{"--ors-url", "not-a-url-with-ors-secret"},
+			env:    map[string]string{"OSMMON_WEBEX_WEBHOOK_URL": "https://webex.example.test/hook", "ORS_API_KEY": "key"},
+			secret: "ors-secret",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseConfig(tc.args, lookupFrom(tc.env))
+			if err == nil {
+				t.Fatal("parseConfig succeeded, want error")
+			}
+			if strings.Contains(err.Error(), tc.secret) {
+				t.Errorf("error exposes credential URL: %q", err)
+			}
+			if strings.Contains(err.Error(), "http or https") {
+				t.Errorf("error suggests plain http is acceptable for a credential URL: %q", err)
+			}
+			if !strings.Contains(err.Error(), "https") {
+				t.Errorf("error does not point to the https requirement: %q", err)
+			}
+		})
+	}
+}
+
 func TestParseEnvFile(t *testing.T) {
 	t.Parallel()
 	content := strings.Join([]string{
